@@ -413,7 +413,7 @@ for result in results:
 
 ## Getting Your API Key
 
-1. Log in to your [MyBotBox]account
+1. Log in to your [MyBotBox](https://app.mybotbox.com) account
 2. Navigate to your workflow
 3. Click on "Deploy" to deploy your workflow
 4. Select or create an API key during the deployment process

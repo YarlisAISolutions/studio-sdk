@@ -5,13 +5,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="yarlis-studio-sdk",
-    version = "0.2.0",
+    version = "0.2.1",
     author="Yarlis AI",
     author_email="support@mybotbox.com",
     description="Yarlis Studio SDK - Execute workflows programmatically",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yarlis/ystudio",
+    url="https://github.com/YarlisAISolutions/studio-sdk",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -44,8 +44,8 @@ setup(
     },
     keywords=["yarlis", "ystudio", "ai", "workflow", "sdk", "api", "automation"],
     project_urls={
-        "Bug Reports": "https://github.com/yarlis/ystudio/issues",
-        "Source": "https://github.com/yarlis/ystudio",
+        "Bug Reports": "https://github.com/YarlisAISolutions/studio-sdk/issues",
+        "Source": "https://github.com/YarlisAISolutions/studio-sdk",
         "Documentation": "https://docs.mybotbox.com",
     },
 ) 
