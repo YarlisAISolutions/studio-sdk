@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.3.1
+
+### Patch Changes
+
+- [#850](https://github.com/YarlisAISolutions/mybotbox-platform/pull/850) [`0603d4f`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/0603d4fadc4d449e81a73d8f8da241cdac39a569) Thanks [@siri1410](https://github.com/siri1410)! - Correct package metadata for clean `publint` and a resolvable repository link. The `repository.url` now uses the full `git+https://…` form and points at the package's real public source home (`github.com/YarlisAISolutions/studio-sdk`), the matching `bugs.url` is updated, and `"sideEffects": false` is declared so bundlers can tree-shake the SDK. No runtime or API changes.
+
 ## 0.3.0
 
 ### Minor Changes
