@@ -413,10 +413,10 @@ export class MyBotBoxClient {
 
   /**
    * Get the status of an async job
-   * @param taskId The task ID returned from async execution
+   * @param workflowId The workflow ID whose status to fetch
    */
-  async getJobStatus(taskId: string): Promise<any> {
-    const url = `${this.baseUrl}/api/jobs/${taskId}`
+  async getJobStatus(workflowId: string): Promise<any> {
+    const url = `${this.baseUrl}/api/workflows/${workflowId}/status`
 
     try {
       const response = await fetch(url, {

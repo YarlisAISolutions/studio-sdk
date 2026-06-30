@@ -373,12 +373,12 @@ class MyBotBoxClient:
         """Close the underlying HTTP session."""
         self._session.close()
 
-    def get_job_status(self, task_id: str) -> Dict[str, Any]:
+    def get_job_status(self, workflow_id: str) -> Dict[str, Any]:
         """
         Get the status of an async job.
 
         Args:
-            task_id: The task ID returned from async execution
+            workflow_id: The workflow ID whose status to fetch
 
         Returns:
             Dictionary containing the job status
@@ -386,7 +386,7 @@ class MyBotBoxClient:
         Raises:
             MyBotBoxError: If getting the status fails
         """
-        url = f"{self.base_url}/api/jobs/{task_id}"
+        url = f"{self.base_url}/api/workflows/{workflow_id}/status"
 
         try:
             response = self._session.get(url)
