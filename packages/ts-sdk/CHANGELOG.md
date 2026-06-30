@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.3.2
+
+### Patch Changes
+
+- [#929](https://github.com/YarlisAISolutions/mybotbox-platform/pull/929) [`2de9e8a`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/2de9e8ae8414dcd0708087986da6ba345b8a4238) Thanks [@siri1410](https://github.com/siri1410)! - Fix `getJobStatus` to call the live `/api/workflows/{id}/status` endpoint instead of the non-existent `/api/jobs/{taskId}` route (TypeScript + Python SDKs).
+
 ## 0.3.1
 
 ### Patch Changes
