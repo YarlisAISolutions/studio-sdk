@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1081](https://github.com/YarlisAISolutions/mybotbox-platform/pull/1081) [`01ef812`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/01ef812f18f7384f821966e17d7a3bf0f9caed52) Thanks [@siri1410](https://github.com/siri1410)! - Expose the Copilot model lineup (`COPILOT_MODELS`, `ACTIVE_COPILOT_MODELS`, `DEFAULT_COPILOT_MODEL`, provider order/labels) as generated data synced from `@yarlisai/ai/copilot` — external agents no longer hardcode model ids. Regenerate with `bun scripts/sync-sdk-copilot-models.mjs`; drift is CI-gated by `copilot-models.sync.test.ts`.
+
 ## 0.3.2
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@yarlisai/studio-sdk",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Yarlis Studio SDK - Execute workflows programmatically",
   "type": "module",
   "sideEffects": false,
