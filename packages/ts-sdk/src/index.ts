@@ -1,3 +1,6 @@
+// Copilot model lineup (generated from @yarlisai/ai — see copilot-models.ts)
+export * from './copilot-models.js'
+
 import fetch from 'node-fetch'
 
 export interface MyBotBoxConfig {
