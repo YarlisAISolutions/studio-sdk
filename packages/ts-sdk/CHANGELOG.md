@@ -1,5 +1,22 @@
 # @yarlisai/studio-sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- [#1115](https://github.com/YarlisAISolutions/mybotbox-platform/pull/1115) [`eccced5`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/eccced58348cafc65fdc3e624b4db0d6db3ed088) Thanks [@siri1410](https://github.com/siri1410)! - Add browser device-login so the SDK can authenticate itself (gh-style), no
+  hand-pasted key required:
+  - `MyBotBoxClient.login({ host?, scope? })` — runs the OAuth device flow (prints a
+    one-time code, opens the browser, polls for the token) and returns a ready
+    client. Credentials are stored in `~/.mybotbox/hosts.json`, shared with the
+    `mybotbox` CLI.
+  - `deviceLogin()` / `loadStoredToken()` exported for lower-level use;
+    `MyBotBoxClient.fromStoredCredentials()` builds a client from a saved token.
+  - `apiKey` is now optional — the client auto-loads `MYBOTBOX_TOKEN` (any env) or a
+    stored device token.
+  - New `AuthExpiredError` + `isAuthExpired()` — a 401 now signals re-authentication
+    (device tokens expire after 90 days).
+
 ## 0.4.0
 
 ### Minor Changes
