@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="yarlis-studio-sdk",
-    version = "0.2.1",
+    version = "0.3.0",
     author="Yarlis AI",
     author_email="support@mybotbox.com",
     description="Yarlis Studio SDK - Execute workflows programmatically",

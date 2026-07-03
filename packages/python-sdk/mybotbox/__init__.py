@@ -12,6 +12,7 @@ will until the next major release. New code should prefer `mybotbox`.
 
 from ystudio import (  # noqa: F401
     AsyncExecutionResult,
+    AuthExpiredError,
     MyBotBoxClient,
     MyBotBoxError,
     RateLimitInfo,
@@ -19,6 +20,9 @@ from ystudio import (  # noqa: F401
     WorkflowExecutionResult,
     WorkflowStatus,
     __version__,
+    device_login,
+    load_stored_token,
+    resolve_host,
 )
 
 from ystudio import (  # noqa: F401
@@ -32,6 +36,10 @@ from ystudio import (  # noqa: F401
 __all__ = [
     "MyBotBoxClient",
     "MyBotBoxError",
+    "AuthExpiredError",
+    "device_login",
+    "load_stored_token",
+    "resolve_host",
     "WorkflowExecutionResult",
     "WorkflowStatus",
     "AsyncExecutionResult",

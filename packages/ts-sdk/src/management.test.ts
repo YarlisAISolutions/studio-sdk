@@ -137,3 +137,34 @@ describe('MyBotBoxClient management CRUD', () => {
     expect(JSON.parse(init.body)).toEqual({ deleteTemplates: false })
   })
 })
+
+describe('MyBotBoxClient authentication', () => {
+  it('maps a 401 to AuthExpiredError (re-auth signal)', async () => {
+    const { AuthExpiredError, isAuthExpired } = await import('./index')
+    mockFetch.mockResolvedValueOnce(fail(401, { error: 'invalid_token' }))
+    let caught: unknown
+    try {
+      await client.listWorkflows()
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(AuthExpiredError)
+    expect(caught).toBeInstanceOf(MyBotBoxError)
+    expect(isAuthExpired(caught)).toBe(true)
+  })
+
+  it('auto-loads MYBOTBOX_TOKEN when no apiKey is passed', async () => {
+    const prev = process.env.MYBOTBOX_TOKEN
+    process.env.MYBOTBOX_TOKEN = 'sk-env'
+    try {
+      const envClient = new MyBotBoxClient({ baseUrl: BASE })
+      mockFetch.mockResolvedValueOnce(ok({ data: [] }))
+      await envClient.listWorkflows()
+      const [, init] = mockFetch.mock.calls[0]
+      expect(init.headers['X-API-Key']).toBe('sk-env')
+    } finally {
+      if (prev === undefined) delete process.env.MYBOTBOX_TOKEN
+      else process.env.MYBOTBOX_TOKEN = prev
+    }
+  })
+})

@@ -1,10 +1,23 @@
 // Copilot model lineup (generated from @yarlisai/ai — see copilot-models.ts)
 export * from './copilot-models.js'
+// Browser device-login (gh-style) — authenticate the SDK without a hand-pasted key.
+export {
+  type DeviceLoginOptions,
+  deviceLogin,
+  loadStoredToken,
+  resolveHost,
+} from './device-auth.js'
 
 import fetch from 'node-fetch'
 
 export interface MyBotBoxConfig {
-  apiKey: string
+  /**
+   * API key. Optional: when omitted the SDK auto-loads a token from
+   * `MYBOTBOX_TOKEN` (any env) or, in Node, a device-login token stored by
+   * `deviceLogin()` / the `mybotbox` CLI. Use {@link MyBotBoxClient.login} to
+   * authenticate through the browser.
+   */
+  apiKey?: string
   baseUrl?: string
 }
 
@@ -185,6 +198,28 @@ export class MyBotBoxError extends Error {
 }
 
 /**
+ * Thrown when the token is missing/expired/invalid (HTTP 401). Re-authenticate
+ * with {@link MyBotBoxClient.login} (or set a fresh `MYBOTBOX_TOKEN`).
+ */
+export class AuthExpiredError extends MyBotBoxError {
+  constructor(message = 'Your credentials have expired. Run device login to re-authenticate.') {
+    super(message, 'AUTH_EXPIRED', 401)
+    this.name = 'AuthExpiredError'
+  }
+}
+
+/** True when an error is an expired/invalid-credentials (401) error. */
+export function isAuthExpired(error: unknown): error is MyBotBoxError {
+  return error instanceof MyBotBoxError && error.status === 401
+}
+
+/** Build the right error for an HTTP status (401 → AuthExpiredError). */
+function httpError(status: number, message: string, code?: string): MyBotBoxError {
+  if (status === 401) return new AuthExpiredError(message)
+  return new MyBotBoxError(message, code, status)
+}
+
+/**
  * Remove trailing slashes from a URL
  * Uses string operations instead of regex to prevent ReDoS attacks
  * @param url - The URL to normalize
@@ -203,9 +238,38 @@ export class MyBotBoxClient {
   private baseUrl: string
   private rateLimitInfo: RateLimitInfo | null = null
 
-  constructor(config: MyBotBoxConfig) {
-    this.apiKey = config.apiKey
+  constructor(config: MyBotBoxConfig = {}) {
+    // Explicit key wins; otherwise auto-load MYBOTBOX_TOKEN (isomorphic). A
+    // Node-stored device token is loaded via the async static helpers below.
+    const envToken = typeof process !== 'undefined' ? process.env?.MYBOTBOX_TOKEN : undefined
+    this.apiKey = config.apiKey || envToken || ''
     this.baseUrl = normalizeBaseUrl(config.baseUrl || 'https://api.mybotbox.com')
+  }
+
+  /**
+   * Authenticate through the browser (device flow) and return a ready client.
+   * Node-only, interactive. Reuses/stores the credential shared with the CLI.
+   */
+  static async login(options: { host?: string; scope?: string } = {}): Promise<MyBotBoxClient> {
+    const { deviceLogin } = await import('./device-auth.js')
+    const { token, host } = await deviceLogin(options)
+    return new MyBotBoxClient({ apiKey: token, baseUrl: host })
+  }
+
+  /**
+   * Build a client from a previously-stored device-login token (Node-only).
+   * Throws {@link AuthExpiredError} when no credential is found — prompting a
+   * `MyBotBoxClient.login()`.
+   */
+  static async fromStoredCredentials(options: { host?: string } = {}): Promise<MyBotBoxClient> {
+    const { loadStoredToken, resolveHost } = await import('./device-auth.js')
+    const token = await loadStoredToken(options.host)
+    if (!token) {
+      throw new AuthExpiredError(
+        'No stored credentials. Run MyBotBoxClient.login() or set MYBOTBOX_TOKEN.'
+      )
+    }
+    return new MyBotBoxClient({ apiKey: token, baseUrl: resolveHost(options.host) })
   }
 
   /**
@@ -591,10 +655,10 @@ export class MyBotBoxClient {
 
       if (!response.ok) {
         const errorData = (await response.json().catch(() => ({}))) as any
-        throw new MyBotBoxError(
+        throw httpError(
+          response.status,
           errorData.error || `HTTP ${response.status}: ${response.statusText}`,
-          errorData.code,
-          response.status
+          errorData.code
         )
       }
       // DELETE may return an empty body.

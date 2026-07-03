@@ -13,7 +13,7 @@ import os
 import requests
 
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 from .copilot_models import (  # noqa: F401
     ACTIVE_COPILOT_MODELS,
     COPILOT_MODELS,
@@ -21,15 +21,24 @@ from .copilot_models import (  # noqa: F401
     COPILOT_PROVIDER_ORDER,
     DEFAULT_COPILOT_MODEL,
 )
+from .device_auth import (  # noqa: F401
+    device_login,
+    load_stored_token,
+    resolve_host,
+)
 
 __all__ = [
     "MyBotBoxClient",
     "MyBotBoxError",
+    "AuthExpiredError",
     "WorkflowExecutionResult",
     "WorkflowStatus",
     "AsyncExecutionResult",
     "RateLimitInfo",
     "UsageLimits",
+    "device_login",
+    "load_stored_token",
+    "resolve_host",
     "COPILOT_MODELS",
     "ACTIVE_COPILOT_MODELS",
     "DEFAULT_COPILOT_MODEL",
@@ -104,6 +113,24 @@ class MyBotBoxError(Exception):
         self.status = status
 
 
+class AuthExpiredError(MyBotBoxError):
+    """Raised when the token is missing/expired/invalid (HTTP 401).
+
+    Re-authenticate with ``device_login()`` or set a fresh ``MBB_API_KEY``.
+    Device tokens expire after 90 days.
+    """
+
+    def __init__(self, message: str = "Your credentials have expired. Run device_login() to re-authenticate."):
+        super().__init__(message, "AUTH_EXPIRED", 401)
+
+
+def _http_error(status: int, message: str, code: Optional[str] = None) -> MyBotBoxError:
+    """Build the right error for an HTTP status (401 -> AuthExpiredError)."""
+    if status == 401:
+        return AuthExpiredError(message)
+    return MyBotBoxError(message, code, status)
+
+
 class MyBotBoxClient:
     """
     MyBotBox API client for executing workflows programmatically.
@@ -113,7 +140,21 @@ class MyBotBoxClient:
         base_url: Base URL for the MyBotBox API (defaults to https://api.mybotbox.com)
     """
 
-    def __init__(self, api_key: str, base_url: str = "https://api.mybotbox.com"):
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+        # Explicit key wins; otherwise auto-load MBB_API_KEY/MYBOTBOX_TOKEN or a
+        # device-login token stored by device_login()/the CLI. When a stored
+        # token is used, default the base URL to the app host where it's valid.
+        if api_key is None:
+            from .device_auth import load_stored_token, resolve_host
+            api_key = load_stored_token(base_url)
+            if base_url is None and api_key is not None:
+                base_url = resolve_host()
+        if base_url is None:
+            base_url = "https://api.mybotbox.com"
+        if not api_key:
+            raise AuthExpiredError(
+                "No API key. Pass api_key=, set MBB_API_KEY, or run device_login()."
+            )
         self.api_key = api_key
         self.base_url = base_url.rstrip('/')
         self._session = requests.Session()
@@ -246,7 +287,7 @@ class MyBotBoxClient:
                     error_message = f'HTTP {response.status_code}: {response.reason}'
                     error_code = None
 
-                raise MyBotBoxError(error_message, error_code, response.status_code)
+                raise _http_error(response.status_code, error_message, error_code)
 
             result_data = response.json()
 
@@ -302,7 +343,7 @@ class MyBotBoxClient:
                     error_message = f'HTTP {response.status_code}: {response.reason}'
                     error_code = None
 
-                raise MyBotBoxError(error_message, error_code, response.status_code)
+                raise _http_error(response.status_code, error_message, error_code)
 
             status_data = response.json()
 
@@ -415,7 +456,7 @@ class MyBotBoxClient:
                     error_message = f'HTTP {response.status_code}: {response.reason}'
                     error_code = None
 
-                raise MyBotBoxError(error_message, error_code, response.status_code)
+                raise _http_error(response.status_code, error_message, error_code)
 
             return response.json()
 
@@ -551,7 +592,7 @@ class MyBotBoxClient:
                     error_message = f'HTTP {response.status_code}: {response.reason}'
                     error_code = None
 
-                raise MyBotBoxError(error_message, error_code, response.status_code)
+                raise _http_error(response.status_code, error_message, error_code)
 
             data = response.json()
 
@@ -582,7 +623,7 @@ class MyBotBoxClient:
                 except (ValueError, KeyError):
                     error_message = f'HTTP {response.status_code}: {response.reason}'
                     error_code = None
-                raise MyBotBoxError(error_message, error_code, response.status_code)
+                raise _http_error(response.status_code, error_message, error_code)
             text = response.text
             return response.json() if text else {}
         except requests.RequestException as e:
