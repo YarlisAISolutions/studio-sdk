@@ -218,7 +218,7 @@ describe('MyBotBoxClient', () => {
 
       // Verify correct endpoint was called
       const calls = vi.mocked(fetch.default).mock.calls
-      expect(calls[0][0]).toBe('https://test.mybotbox.com/api/jobs/task-123')
+      expect(calls[0][0]).toBe('https://test.mybotbox.com/api/workflows/task-123/status')
     })
 
     it('should handle job not found error', async () => {
