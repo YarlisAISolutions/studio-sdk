@@ -32,13 +32,23 @@ COPILOT_MODELS = [
         "icon": "brain",
         "provider": "openai",
         "deprecated": {
-            "successor": "gpt-5.1",
+            "successor": "gpt-5.3",
             "since": "2026-06-12"
         }
     },
     {
         "value": "gpt-5.1",
         "label": "gpt-5.1",
+        "icon": "brain",
+        "provider": "openai",
+        "deprecated": {
+            "successor": "gpt-5.3",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "gpt-5.3",
+        "label": "gpt-5.3",
         "icon": "brain",
         "provider": "openai",
         "capabilities": [
@@ -50,6 +60,16 @@ COPILOT_MODELS = [
     {
         "value": "gpt-5.2",
         "label": "gpt-5.2",
+        "icon": "brainCircuit",
+        "provider": "openai",
+        "deprecated": {
+            "successor": "gpt-5.3-pro",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "gpt-5.3-pro",
+        "label": "gpt-5.3-pro",
         "icon": "brainCircuit",
         "provider": "openai",
         "capabilities": [
@@ -65,7 +85,7 @@ COPILOT_MODELS = [
         "icon": "brainCircuit",
         "provider": "openai",
         "deprecated": {
-            "successor": "gpt-5.2",
+            "successor": "gpt-5.3-pro",
             "since": "2026-06-12"
         }
     },
@@ -84,6 +104,16 @@ COPILOT_MODELS = [
         "label": "claude-sonnet-4-6",
         "icon": "brain",
         "provider": "anthropic",
+        "deprecated": {
+            "successor": "claude-sonnet-4-7",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "claude-sonnet-4-7",
+        "label": "claude-sonnet-4-7",
+        "icon": "brain",
+        "provider": "anthropic",
         "capabilities": [
             "vision",
             "code",
@@ -93,6 +123,16 @@ COPILOT_MODELS = [
     {
         "value": "claude-opus-4-8",
         "label": "claude-opus-4-8",
+        "icon": "brainCircuit",
+        "provider": "anthropic",
+        "deprecated": {
+            "successor": "claude-opus-4-9",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "claude-opus-4-9",
+        "label": "claude-opus-4-9",
         "icon": "brainCircuit",
         "provider": "anthropic",
         "capabilities": [
@@ -105,6 +145,16 @@ COPILOT_MODELS = [
     {
         "value": "gemini-3.1-flash-lite",
         "label": "gemini-3.1-flash-lite",
+        "icon": "zap",
+        "provider": "google",
+        "deprecated": {
+            "successor": "gemini-3.5-flash-lite",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "gemini-3.5-flash-lite",
+        "label": "gemini-3.5-flash-lite",
         "icon": "zap",
         "provider": "google",
         "capabilities": [
@@ -128,6 +178,16 @@ COPILOT_MODELS = [
     {
         "value": "gemini-3.1-pro-preview",
         "label": "gemini-3.1-pro",
+        "icon": "brainCircuit",
+        "provider": "google",
+        "deprecated": {
+            "successor": "gemini-3.5-pro",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "gemini-3.5-pro",
+        "label": "gemini-3.5-pro",
         "icon": "brainCircuit",
         "provider": "google",
         "capabilities": [
@@ -163,6 +223,16 @@ COPILOT_MODELS = [
         "label": "Kimi K2.6",
         "icon": "brain",
         "provider": "openrouter",
+        "deprecated": {
+            "successor": "moonshotai/kimi-k3",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "moonshotai/kimi-k3",
+        "label": "Kimi K3",
+        "icon": "brain",
+        "provider": "openrouter",
         "capabilities": [
             "code",
             "reasoning"
@@ -172,6 +242,45 @@ COPILOT_MODELS = [
         "value": "deepseek/deepseek-v4-pro",
         "label": "DeepSeek V4 Pro",
         "icon": "brain",
+        "provider": "openrouter",
+        "deprecated": {
+            "successor": "deepseek/deepseek-v4.1",
+            "since": "2026-07-10"
+        }
+    },
+    {
+        "value": "deepseek/deepseek-v4.1",
+        "label": "DeepSeek V4.1",
+        "icon": "brain",
+        "provider": "openrouter",
+        "capabilities": [
+            "code",
+            "reasoning"
+        ]
+    },
+    {
+        "value": "nousresearch/hermes-3-llama-3.1-8b",
+        "label": "Hermes 3 8B",
+        "icon": "zap",
+        "provider": "openrouter",
+        "capabilities": [
+            "code"
+        ]
+    },
+    {
+        "value": "nousresearch/hermes-3-llama-3.1-70b",
+        "label": "Hermes 3 70B",
+        "icon": "brain",
+        "provider": "openrouter",
+        "capabilities": [
+            "code",
+            "reasoning"
+        ]
+    },
+    {
+        "value": "nousresearch/hermes-3-llama-3.1-405b",
+        "label": "Hermes 3 405B",
+        "icon": "brainCircuit",
         "provider": "openrouter",
         "capabilities": [
             "code",
