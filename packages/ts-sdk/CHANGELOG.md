@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.5.1
+
+### Patch Changes
+
+- [#1495](https://github.com/YarlisAISolutions/mybotbox-platform/pull/1495) [`ef4312b`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/ef4312b020cfe18ef8944ffd92768b05fe564785) Thanks [@siri1410](https://github.com/siri1410)! - Sync the vendored Copilot model lineup with the `@yarlisai/ai` source of truth. The catalog gained models (now 27) without the SDK copies being regenerated, tripping the drift gate; regenerated via `scripts/sync-sdk-copilot-models.mjs`.
+
 ## 0.5.0
 
 ### Minor Changes
