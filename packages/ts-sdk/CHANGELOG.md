@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.5.2
+
+### Patch Changes
+
+- [#1828](https://github.com/YarlisAISolutions/mybotbox-platform/pull/1828) [`6e4a408`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/6e4a4080770a15835a6f462ecf44410b8cdf320b) Thanks [@siri1410](https://github.com/siri1410)! - Remove the unused `@vitest/coverage-v8` devDependency. The package's `vitest.config.ts` declares no `coverage` block and none of its scripts pass `--coverage`, so nothing ever loaded the provider. Test-only change with no effect on the published output.
+
 ## 0.5.1
 
 ### Patch Changes
