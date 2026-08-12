@@ -200,7 +200,11 @@ def test_get_job_status_success(mock_get):
     assert result["taskId"] == "task-123"
     assert result["status"] == "completed"
     assert result["output"]["result"] == "done"
-    mock_get.assert_called_once_with("https://test.mybotbox.com/api/jobs/task-123")
+    # The client polls /api/workflows/<id>/status (apps/sat/app/api/
+    # workflows/[id]/status); the retired /api/jobs/<id> form kept this
+    # asserting the OLD URL — red since 2026-06-30, silently blocking every
+    # PyPI publish (the workflow's test step gates the publish steps).
+    mock_get.assert_called_once_with("https://test.mybotbox.com/api/workflows/task-123/status")
 
 
 @patch('ystudio.requests.Session.get')
