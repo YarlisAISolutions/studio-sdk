@@ -18,7 +18,7 @@ def test_mybotbox_client_default_base_url():
     """Test MyBotBoxClient with default base URL."""
     client = MyBotBoxClient(api_key="test-api-key")
     assert client.api_key == "test-api-key"
-    assert client.base_url == "https://api.mybotbox.com"
+    assert client.base_url == "https://mybotbox.com"
 
 
 def test_set_api_key():
@@ -51,7 +51,7 @@ def test_validate_workflow_returns_false_on_error(mock_get):
     result = client.validate_workflow("test-workflow-id")
 
     assert result is False
-    mock_get.assert_called_once_with("https://api.mybotbox.com/api/workflows/test-workflow-id/status")
+    mock_get.assert_called_once_with("https://mybotbox.com/api/workflows/test-workflow-id/status")
 
 
 def test_mybotbox_error():

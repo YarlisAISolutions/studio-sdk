@@ -4,7 +4,7 @@ import { MyBotBoxClient, MyBotBoxError } from '../src/index'
 async function basicExample() {
   const client = new MyBotBoxClient({
     apiKey: process.env.MYBOTBOX_API_KEY!,
-    baseUrl: 'https://api.mybotbox.com',
+    baseUrl: 'https://mybotbox.com',
   })
 
   try {

@@ -20,7 +20,7 @@ import { MyBotBoxClient } from '@yarlisai/studio-sdk';
 // Initialize the client
 const client = new MyBotBoxClient({
   apiKey: 'your-api-key-here',
-  baseUrl: 'https://api.mybotbox.com' // optional, defaults to https://api.mybotbox.com
+  baseUrl: 'https://mybotbox.com' // optional, defaults to https://mybotbox.com
 });
 
 // Execute a workflow
@@ -43,7 +43,7 @@ new MyBotBoxClient(config: MyBotBoxConfig)
 ```
 
 - `config.apiKey` (string): Your MyBotBox API key
-- `config.baseUrl` (string, optional): Base URL for the MyBotBox API (defaults to `https://api.mybotbox.com`)
+- `config.baseUrl` (string, optional): Base URL for the MyBotBox API (defaults to `https://mybotbox.com`)
 
 #### Methods
 

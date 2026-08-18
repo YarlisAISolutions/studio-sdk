@@ -17,7 +17,7 @@ from mybotbox import MyBotBoxClient
 # Initialize the client
 client = MyBotBoxClient(
     api_key=os.getenv("MBB_API_KEY", "your-api-key-here"),
-    base_url="https://api.mybotbox.com"
+    base_url="https://mybotbox.com"
 )
 
 # Execute a workflow
@@ -35,11 +35,11 @@ except Exception as error:
 #### Constructor
 
 ```python
-MyBotBoxClient(api_key: str, base_url: str = "https://api.mybotbox.com")
+MyBotBoxClient(api_key: str, base_url: str = "https://mybotbox.com")
 ```
 
 - `api_key` (str): Your MyBotBox API key
-- `base_url` (str, optional): Base URL for the MyBotBox API (defaults to `https://api.mybotbox.com`)
+- `base_url` (str, optional): Base URL for the MyBotBox API (defaults to `https://mybotbox.com`)
 
 #### Methods
 
@@ -307,7 +307,7 @@ from mybotbox import MyBotBoxClient
 # Using environment variables
 client = MyBotBoxClient(
     api_key=os.getenv("MBB_API_KEY"),
-    base_url=os.getenv("MBB_BASE_URL", "https://api.mybotbox.com")
+    base_url=os.getenv("MBB_BASE_URL", "https://mybotbox.com")
 )
 ```
 

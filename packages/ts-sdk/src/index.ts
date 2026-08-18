@@ -243,7 +243,7 @@ export class MyBotBoxClient {
     // Node-stored device token is loaded via the async static helpers below.
     const envToken = typeof process !== 'undefined' ? process.env?.MYBOTBOX_TOKEN : undefined
     this.apiKey = config.apiKey || envToken || ''
-    this.baseUrl = normalizeBaseUrl(config.baseUrl || 'https://api.mybotbox.com')
+    this.baseUrl = normalizeBaseUrl(config.baseUrl || 'https://mybotbox.com')
   }
 
   /**

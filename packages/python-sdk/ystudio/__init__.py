@@ -13,7 +13,7 @@ import os
 import requests
 
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 from .copilot_models import (  # noqa: F401
     ACTIVE_COPILOT_MODELS,
     COPILOT_MODELS,
@@ -137,7 +137,7 @@ class MyBotBoxClient:
 
     Args:
         api_key: Your MyBotBox API key
-        base_url: Base URL for the MyBotBox API (defaults to https://api.mybotbox.com)
+        base_url: Base URL for the MyBotBox API (defaults to https://mybotbox.com)
     """
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
@@ -150,7 +150,7 @@ class MyBotBoxClient:
             if base_url is None and api_key is not None:
                 base_url = resolve_host()
         if base_url is None:
-            base_url = "https://api.mybotbox.com"
+            base_url = "https://mybotbox.com"
         if not api_key:
             raise AuthExpiredError(
                 "No API key. Pass api_key=, set MBB_API_KEY, or run device_login()."
