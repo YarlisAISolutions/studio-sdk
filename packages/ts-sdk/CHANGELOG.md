@@ -1,5 +1,14 @@
 # @yarlisai/studio-sdk
 
+## 0.5.3
+
+### Patch Changes
+
+- [#2459](https://github.com/YarlisAISolutions/mybotbox-platform/pull/2459) [`f6763b1`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/f6763b1febac64ca94bec81a402e454ce0375777) Thanks [@github-actions](https://github.com/apps/github-actions)! - Fix default `baseUrl` — was `https://api.mybotbox.com` (NXDOMAIN, host
+  splitting is deferred), now `https://mybotbox.com` (the actual deployed
+  origin). Consumers who omitted `baseUrl` got connection failures on every
+  call.
+
 ## 0.5.2
 
 ### Patch Changes
