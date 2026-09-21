@@ -1,5 +1,14 @@
 # @yarlisai/studio-sdk
 
+## 0.5.4
+
+### Patch Changes
+
+- [#3166](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3166) [`090d5ca`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/090d5caf54431b16e1489decf328e9d049c9ef8b) Thanks [@siri1410](https://github.com/siri1410)! - Publish the TypeScript SDK publicly on npm. It had been published with
+  `access: restricted` like the internal `@yarlisai/*` packages, so
+  `npm install @yarlisai/studio-sdk` — the command the SDK docs give customers —
+  returned E404 for anyone outside the organisation.
+
 ## 0.5.3
 
 ### Patch Changes
