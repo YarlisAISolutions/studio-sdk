@@ -20,13 +20,54 @@ client = MyBotBoxClient(
     base_url="https://mybotbox.com"
 )
 
-# Execute a workflow
+# Queue a workflow run, then wait for its result
 try:
-    result = client.execute_workflow("workflow-id")
-    print("Workflow executed successfully:", result)
+    queued = client.execute_workflow("workflow-id", input_data={"message": "Hello"})
+    run = client.wait_for_run("workflow-id", queued.execution_id)
+    print(run.status, run.output)
 except Exception as error:
     print("Workflow execution failed:", error)
 ```
+
+## Agents
+
+Create an AI agent and talk to it in a few lines. An agent is a deployed
+Start → Agent → Response workflow, so it also opens in the canvas.
+
+```python
+import os
+from mybotbox import MyBotBoxClient
+
+client = MyBotBoxClient(
+    api_key=os.environ["MYBOTBOX_API_KEY"],
+    base_url="https://app.mybotbox.com",
+)
+
+agent = client.agents.create(
+    name="Support bot",
+    instructions="You answer questions about our product in one short paragraph.",
+    model="gpt-4o-mini",               # optional
+    workspace_id="your-workspace-id",  # required if you have more than one workspace
+)
+
+run = client.agents.run(agent.id, "What do you do?")
+print(run.reply)
+```
+
+| Method | Route | What it does |
+|---|---|---|
+| `agents.create(name, instructions, model=None, workspace_id=None, idempotency_key=None)` | `POST /api/v1/agents` | Creates and deploys an agent → `Agent` |
+| `agents.list(workspace_id=None, limit=None, cursor=None)` | `GET /api/v1/agents` | One page → `AgentList(data, next_cursor)` (`limit` ≤ 50) |
+| `agents.get(agent_id)` | `GET /api/v1/agents/{id}` | One `Agent` |
+| `agents.run(agent_id, message, timeout=120.0, idempotency_key=None)` | `POST /api/v1/agents/{id}/runs` | Sends a message and waits for the reply → `AgentRun` |
+| `agents.get_run(agent_id, run_id)` | `GET /api/v1/agents/{id}/runs/{runId}` | Reads a run without waiting |
+
+`agents.run` asks the server to wait for the reply (up to 55s). If the run is
+still going, it polls until the run finishes or `timeout` seconds (default 120,
+counted from the call) pass, then raises `MyBotBoxError` with code `TIMEOUT`.
+A run that ends `failed` is returned, not raised: check `run.status` and
+`run.error`. Pass `idempotency_key` to make a retried `create` or `run` return
+the original instead of a duplicate.
 
 ## API Reference
 
@@ -45,14 +86,16 @@ MyBotBoxClient(api_key: str, base_url: str = "https://mybotbox.com")
 
 ##### execute_workflow(workflow_id, input_data=None, timeout=30.0)
 
-Execute a workflow with optional input data.
+Queue a workflow run with optional input data. The input is sent as
+`{"input": input_data}`, which is where the server reads it.
 
 ```python
-result = client.execute_workflow(
+queued = client.execute_workflow(
     "workflow-id",
     input_data={"message": "Hello, world!"},
     timeout=30.0  # 30 seconds
 )
+print(queued.execution_id)
 ```
 
 **Parameters:**
@@ -61,7 +104,18 @@ result = client.execute_workflow(
 - `input_data` (dict, optional): Input data to pass to the workflow. File objects are automatically converted to base64.
 - `timeout` (float): Timeout in seconds (default: 30.0)
 
-**Returns:** `WorkflowExecutionResult`
+**Returns:** `QueuedExecutionResult(success, execution_id, status="queued", task_name)`
+
+##### get_run_status(workflow_id, run_id)
+
+Read one run's current state → `WorkflowRun(run_id, status, output, error, trigger_type, started_at, finished_at)`.
+`status` is one of `pending`, `running`, `paused`, `completed`, `failed`, `cancelled`.
+
+##### wait_for_run(workflow_id, run_id, timeout=120.0)
+
+Poll a run (backoff 0.5s → 2s) until it is `completed`, `failed` or
+`cancelled`, and return it. Raises `MyBotBoxError` with code `TIMEOUT` after
+`timeout` seconds.
 
 ##### get_workflow_status(workflow_id)
 
@@ -98,6 +152,9 @@ if is_ready:
 ##### execute_workflow_sync(workflow_id, input_data=None, timeout=30.0)
 
 Execute a workflow and poll for completion (useful for long-running workflows).
+
+> Today this returns the queued result like `execute_workflow`. To get the
+> output, call `wait_for_run(workflow_id, queued.execution_id)`.
 
 ```python
 result = client.execute_workflow_sync(

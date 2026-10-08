@@ -4,8 +4,9 @@ MyBotBox SDK for Python
 Official Python SDK for MyBotBox, allowing you to execute workflows programmatically.
 """
 
-from typing import Any, Dict, Optional, Union
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass, field
+from urllib.parse import quote, urlencode
 import time
 import random
 import os
@@ -13,7 +14,7 @@ import os
 import requests
 
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 from .copilot_models import (  # noqa: F401
     ACTIVE_COPILOT_MODELS,
     COPILOT_MODELS,
@@ -34,6 +35,14 @@ __all__ = [
     "WorkflowExecutionResult",
     "WorkflowStatus",
     "AsyncExecutionResult",
+    "QueuedExecutionResult",
+    "WorkflowRun",
+    "Agent",
+    "AgentRun",
+    "AgentList",
+    "Agents",
+    "RunStatus",
+    "TERMINAL_RUN_STATUSES",
     "RateLimitInfo",
     "UsageLimits",
     "device_login",
@@ -70,12 +79,150 @@ class WorkflowStatus:
 
 @dataclass
 class AsyncExecutionResult:
-    """Result of an async workflow execution."""
+    """Deprecated: the server never returned this shape (taskId/links).
+
+    ``execute_workflow`` returns :class:`QueuedExecutionResult`. Kept so
+    existing imports keep working.
+    """
     success: bool
     task_id: str
     status: str  # 'queued'
     created_at: str
     links: Dict[str, str]
+
+
+# A run's lifecycle: pending | queued | running | paused | completed | failed | cancelled.
+# ``paused`` is a human-in-the-loop run waiting for approval (non-terminal).
+RunStatus = str
+TERMINAL_RUN_STATUSES = ("completed", "failed", "cancelled")
+
+POLL_INITIAL_DELAY = 0.5
+POLL_MAX_DELAY = 2.0
+SERVER_MAX_WAIT_SECONDS = 55.0
+DEFAULT_RUN_TIMEOUT = 120.0
+
+
+def _now() -> float:
+    """Monotonic clock (patched in tests)."""
+    return time.monotonic()
+
+
+def _sleep(seconds: float) -> None:
+    """Sleep (patched in tests)."""
+    time.sleep(seconds)
+
+
+@dataclass
+class QueuedExecutionResult:
+    """What ``POST /api/workflows/{id}/execute`` returns: the run is queued.
+
+    Follow it with ``get_run_status`` / ``wait_for_run`` using ``execution_id``.
+    """
+    success: bool
+    execution_id: str
+    status: str = "queued"
+    task_name: Optional[str] = None
+
+
+@dataclass
+class WorkflowRun:
+    """A workflow run, as ``GET /api/workflows/{id}/runs/{runId}/status`` returns it."""
+    run_id: str
+    status: RunStatus
+    output: Any = None
+    error: Optional[str] = None
+    trigger_type: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "WorkflowRun":
+        return cls(
+            run_id=data.get("runId", ""),
+            status=data.get("status", ""),
+            output=data.get("output"),
+            error=data.get("error"),
+            trigger_type=data.get("triggerType"),
+            started_at=data.get("startedAt"),
+            finished_at=data.get("finishedAt"),
+            raw=data,
+        )
+
+
+@dataclass
+class Agent:
+    """An AI agent: a deployed Start -> Agent -> Response workflow (id = workflow id)."""
+    id: str
+    name: str
+    model: Optional[str] = None
+    workspace_id: Optional[str] = None
+    deployed: bool = False
+    created_at: Optional[str] = None
+    canvas_url: Optional[str] = None
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Agent":
+        return cls(
+            id=data.get("id", ""),
+            name=data.get("name", ""),
+            model=data.get("model"),
+            workspace_id=data.get("workspaceId"),
+            deployed=bool(data.get("deployed", False)),
+            created_at=data.get("createdAt"),
+            canvas_url=data.get("canvasUrl"),
+            raw=data,
+        )
+
+
+@dataclass
+class AgentRun:
+    """One run of an agent. ``reply`` holds the agent's answer once completed."""
+    run_id: str
+    status: RunStatus
+    reply: Optional[str] = None
+    output: Any = None
+    error: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    raw: Dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AgentRun":
+        return cls(
+            run_id=data.get("runId", ""),
+            status=data.get("status", ""),
+            reply=data.get("reply"),
+            output=data.get("output"),
+            error=data.get("error"),
+            started_at=data.get("startedAt"),
+            finished_at=data.get("finishedAt"),
+            raw=data,
+        )
+
+
+@dataclass
+class AgentList:
+    """One page of agents. Pass ``next_cursor`` as ``cursor`` for the next page."""
+    data: List[Agent]
+    next_cursor: Optional[str] = None
+
+
+def _poll_until_terminal(read, deadline: float):
+    """Sleep with backoff (0.5s -> 2s), then ``read()``, until terminal or ``deadline``.
+
+    The last sleep is trimmed to land on the deadline and followed by one final
+    read. Returns the terminal value, or None when the deadline passed.
+    """
+    delay = POLL_INITIAL_DELAY
+    while deadline - _now() > 0:
+        _sleep(min(delay, max(0.0, deadline - _now())))
+        value = read()
+        if value.status in TERMINAL_RUN_STATUSES:
+            return value
+        delay = min(delay * 2, POLL_MAX_DELAY)
+    return None
 
 
 @dataclass
@@ -131,6 +278,133 @@ def _http_error(status: int, message: str, code: Optional[str] = None) -> MyBotB
     return MyBotBoxError(message, code, status)
 
 
+def _error_from_response(response: requests.Response) -> MyBotBoxError:
+    """Map a non-2xx response to an error.
+
+    Accepts the legacy ``{error, code}`` body and the HTTP-port
+    ``{error, code, details: {code}}`` body (the finer ``details.code`` wins).
+    """
+    fallback = f'HTTP {response.status_code}: {response.reason}'
+    try:
+        data = response.json()
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        return _http_error(response.status_code, fallback)
+    details = data.get('details')
+    details_code = details.get('code') if isinstance(details, dict) else None
+    err = data.get('error')
+    if isinstance(err, dict):
+        message = err.get('message') or data.get('message') or fallback
+        code = details_code or err.get('code') or data.get('code')
+    else:
+        message = err or data.get('message') or fallback
+        code = details_code or data.get('code')
+    return _http_error(response.status_code, str(message), code)
+
+
+class Agents:
+    """``client.agents`` — create, list, get and run AI agents (``/api/v1/agents``).
+
+    An agent is a deployed Start -> Agent -> Response workflow; its id is the
+    workflow id, so it also opens in the canvas (``canvas_url``).
+    """
+
+    def __init__(self, client: "MyBotBoxClient"):
+        self._client = client
+
+    @staticmethod
+    def _idempotency(key: Optional[str]) -> Optional[Dict[str, str]]:
+        return {'Idempotency-Key': key} if key else None
+
+    def create(
+        self,
+        name: str,
+        instructions: str,
+        model: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Agent:
+        """Create and deploy an agent. ``model`` defaults to ``gpt-4o-mini`` server-side."""
+        body: Dict[str, Any] = {'name': name, 'instructions': instructions}
+        if model is not None:
+            body['model'] = model
+        if workspace_id is not None:
+            body['workspaceId'] = workspace_id
+        _, data = self._client._request_raw(
+            'POST', '/api/v1/agents', body, headers=self._idempotency(idempotency_key)
+        )
+        return Agent.from_dict(data)
+
+    def list(
+        self,
+        workspace_id: Optional[str] = None,
+        limit: Optional[int] = None,
+        cursor: Optional[str] = None,
+    ) -> AgentList:
+        """List agents (newest first). Page with ``cursor=page.next_cursor``; ``limit`` <= 50."""
+        params: Dict[str, str] = {}
+        if workspace_id:
+            params['workspaceId'] = workspace_id
+        if limit is not None:
+            params['limit'] = str(limit)
+        if cursor:
+            params['cursor'] = cursor
+        qs = f"?{urlencode(params)}" if params else ""
+        _, data = self._client._request_raw('GET', f'/api/v1/agents{qs}')
+        return AgentList(
+            data=[Agent.from_dict(a) for a in data.get('data', [])],
+            next_cursor=data.get('nextCursor'),
+        )
+
+    def get(self, agent_id: str) -> Agent:
+        """Get one agent."""
+        _, data = self._client._request_raw('GET', f"/api/v1/agents/{quote(agent_id, safe='')}")
+        return Agent.from_dict(data)
+
+    def get_run(self, agent_id: str, run_id: str) -> AgentRun:
+        """Read a run's current state without waiting."""
+        _, data = self._client._request_raw(
+            'GET',
+            f"/api/v1/agents/{quote(agent_id, safe='')}/runs/{quote(run_id, safe='')}",
+        )
+        return AgentRun.from_dict(data)
+
+    def run(
+        self,
+        agent_id: str,
+        message: str,
+        timeout: float = DEFAULT_RUN_TIMEOUT,
+        idempotency_key: Optional[str] = None,
+    ) -> AgentRun:
+        """Send ``message`` to the agent and wait for its reply.
+
+        The server waits up to 55s. If the run is still going (HTTP 202) this
+        polls the run until it finishes or ``timeout`` seconds (counted from
+        the start of this call) run out, then raises ``MyBotBoxError`` with
+        code ``TIMEOUT``. A ``failed``/``cancelled`` run is returned, not
+        raised — check ``run.status`` and ``run.error``.
+        """
+        deadline = _now() + timeout
+        server_wait = max(0.001, min(timeout, SERVER_MAX_WAIT_SECONDS))
+        _, data = self._client._request_raw(
+            'POST',
+            f"/api/v1/agents/{quote(agent_id, safe='')}/runs",
+            {'message': message, 'wait': True, 'timeoutMs': int(server_wait * 1000)},
+            headers=self._idempotency(idempotency_key),
+            http_timeout=server_wait + 15.0,
+        )
+        first = AgentRun.from_dict(data)
+        if first.status in TERMINAL_RUN_STATUSES:
+            return first
+        done = _poll_until_terminal(lambda: self.get_run(agent_id, first.run_id), deadline)
+        if done is not None:
+            return done
+        raise MyBotBoxError(
+            f'Agent run {first.run_id} did not finish within {timeout} seconds', 'TIMEOUT'
+        )
+
+
 class MyBotBoxClient:
     """
     MyBotBox API client for executing workflows programmatically.
@@ -163,6 +437,8 @@ class MyBotBoxClient:
             'Content-Type': 'application/json',
         })
         self._rate_limit_info: Optional[RateLimitInfo] = None
+        #: Create, list, get and run AI agents (``/api/v1/agents``).
+        self.agents = Agents(self)
 
     def _convert_files_to_base64(self, value: Any) -> Any:
         """
@@ -219,10 +495,13 @@ class MyBotBoxClient:
         stream: Optional[bool] = None,
         selected_outputs: Optional[list] = None,
         async_execution: Optional[bool] = None
-    ) -> Union[WorkflowExecutionResult, AsyncExecutionResult]:
+    ) -> Union[QueuedExecutionResult, WorkflowExecutionResult]:
         """
-        Execute a workflow with optional input data.
-        If async_execution is True, returns immediately with a task ID.
+        Queue a workflow run with optional input data.
+
+        The server queues every run and answers with its ``execution_id``
+        (a :class:`QueuedExecutionResult`); follow it with ``wait_for_run``.
+        The input is sent as ``{"input": input_data}``.
 
         File objects in input_data will be automatically detected and converted to base64.
 
@@ -248,11 +527,11 @@ class MyBotBoxClient:
             headers['X-Execution-Mode'] = 'async'
 
         try:
-            # Build JSON body - spread input at root level, then add API control parameters
-            body = input_data.copy() if input_data is not None else {}
-
-            # Convert any file objects in the input to base64 format
-            body = self._convert_files_to_base64(body)
+            # The server reads the workflow input from body["input"]; API control
+            # parameters ride at the root. File objects are converted to base64.
+            body: Dict[str, Any] = {}
+            if input_data is not None:
+                body['input'] = self._convert_files_to_base64(input_data)
 
             if stream is not None:
                 body['stream'] = stream
@@ -279,28 +558,20 @@ class MyBotBoxClient:
                 )
 
             if not response.ok:
-                try:
-                    error_data = response.json()
-                    error_message = error_data.get('error', f'HTTP {response.status_code}: {response.reason}')
-                    error_code = error_data.get('code')
-                except (ValueError, KeyError):
-                    error_message = f'HTTP {response.status_code}: {response.reason}'
-                    error_code = None
-
-                raise _http_error(response.status_code, error_message, error_code)
+                raise _error_from_response(response)
 
             result_data = response.json()
 
-            # Check if this is an async execution response (202 status)
-            if response.status_code == 202 and 'taskId' in result_data:
-                return AsyncExecutionResult(
+            # The execute route queues the run: { success, executionId, status: 'queued' }.
+            if 'executionId' in result_data:
+                return QueuedExecutionResult(
                     success=result_data.get('success', True),
-                    task_id=result_data['taskId'],
+                    execution_id=result_data['executionId'],
                     status=result_data.get('status', 'queued'),
-                    created_at=result_data.get('createdAt', ''),
-                    links=result_data.get('links', {})
+                    task_name=result_data.get('taskName'),
                 )
 
+            # Legacy servers that ran inline and returned the output directly.
             return WorkflowExecutionResult(
                 success=result_data['success'],
                 output=result_data.get('output'),
@@ -372,6 +643,31 @@ class MyBotBoxClient:
             return status.is_deployed
         except MyBotBoxError:
             return False
+
+    def get_run_status(self, workflow_id: str, run_id: str) -> WorkflowRun:
+        """Read the current state of one workflow run (``execution_id`` from ``execute_workflow``)."""
+        _, data = self._request_raw(
+            'GET',
+            f"/api/workflows/{quote(workflow_id, safe='')}/runs/{quote(run_id, safe='')}/status",
+        )
+        return WorkflowRun.from_dict(data)
+
+    def wait_for_run(
+        self, workflow_id: str, run_id: str, timeout: float = DEFAULT_RUN_TIMEOUT
+    ) -> WorkflowRun:
+        """Poll a run until it is completed, failed or cancelled (backoff 0.5s -> 2s).
+
+        Returns the terminal run (a failed run is returned, not raised). Raises
+        ``MyBotBoxError`` with code ``TIMEOUT`` after ``timeout`` seconds.
+        """
+        deadline = _now() + timeout
+        first = self.get_run_status(workflow_id, run_id)
+        if first.status in TERMINAL_RUN_STATUSES:
+            return first
+        done = _poll_until_terminal(lambda: self.get_run_status(workflow_id, run_id), deadline)
+        if done is not None:
+            return done
+        raise MyBotBoxError(f'Run {run_id} did not finish within {timeout} seconds', 'TIMEOUT')
 
     def execute_workflow_sync(
         self,
@@ -475,7 +771,7 @@ class MyBotBoxClient:
         initial_delay: float = 1.0,
         max_delay: float = 30.0,
         backoff_multiplier: float = 2.0
-    ) -> Union[WorkflowExecutionResult, AsyncExecutionResult]:
+    ) -> Union[QueuedExecutionResult, WorkflowExecutionResult]:
         """
         Execute workflow with automatic retry on rate limit.
 
@@ -611,21 +907,33 @@ class MyBotBoxClient:
 
     def _request(self, method: str, path: str, json_body: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Shared JSON request helper: applies auth, maps errors, returns the body."""
+        _, data = self._request_raw(method, path, json_body)
+        return data
+
+    def _request_raw(
+        self,
+        method: str,
+        path: str,
+        json_body: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        http_timeout: Optional[float] = None,
+    ) -> Tuple[int, Dict[str, Any]]:
+        """Like ``_request`` but also returns the HTTP status (200 vs 202) and takes extra headers."""
         url = f"{self.base_url}{path}"
+        kwargs: Dict[str, Any] = {'json': json_body}
+        if headers:
+            kwargs['headers'] = headers
+        if http_timeout is not None:
+            kwargs['timeout'] = http_timeout
         try:
-            response = self._session.request(method, url, json=json_body)
+            response = self._session.request(method, url, **kwargs)
             self._update_rate_limit_info(response)
             if not response.ok:
-                try:
-                    error_data = response.json()
-                    error_message = error_data.get('error', f'HTTP {response.status_code}: {response.reason}')
-                    error_code = error_data.get('code')
-                except (ValueError, KeyError):
-                    error_message = f'HTTP {response.status_code}: {response.reason}'
-                    error_code = None
-                raise _http_error(response.status_code, error_message, error_code)
+                raise _error_from_response(response)
             text = response.text
-            return response.json() if text else {}
+            return response.status_code, (response.json() if text else {})
+        except requests.Timeout:
+            raise MyBotBoxError(f'Request timed out: {method} {path}', 'TIMEOUT')
         except requests.RequestException as e:
             raise MyBotBoxError(f'Request failed: {method} {path}: {str(e)}', 'REQUEST_ERROR')
 

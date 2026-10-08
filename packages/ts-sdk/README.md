@@ -23,14 +23,56 @@ const client = new MyBotBoxClient({
   baseUrl: 'https://mybotbox.com' // optional, defaults to https://mybotbox.com
 });
 
-// Execute a workflow
+// Queue a workflow run, then wait for its result
 try {
-  const result = await client.executeWorkflow('workflow-id');
-  console.log('Workflow executed successfully:', result);
+  const { executionId } = await client.executeWorkflow('workflow-id', {
+    input: { message: 'Hello' },
+  });
+  const run = await client.waitForRun('workflow-id', executionId);
+  console.log(run.status, run.output);
 } catch (error) {
   console.error('Workflow execution failed:', error);
 }
 ```
+
+## Agents
+
+Create an AI agent and talk to it in a few lines. An agent is a deployed
+Start → Agent → Response workflow, so it also opens in the canvas.
+
+```typescript
+import { MyBotBoxClient } from '@yarlisai/studio-sdk';
+
+const client = new MyBotBoxClient({
+  apiKey: process.env.MYBOTBOX_API_KEY,
+  baseUrl: 'https://app.mybotbox.com',
+});
+
+const agent = await client.agents.create({
+  name: 'Support bot',
+  instructions: 'You answer questions about our product in one short paragraph.',
+  model: 'gpt-4o-mini', // optional
+  workspaceId: 'your-workspace-id', // required if you have more than one workspace
+});
+
+const run = await client.agents.run(agent.id, { message: 'What do you do?' });
+console.log(run.reply);
+```
+
+| Method | Route | What it does |
+|---|---|---|
+| `agents.create({ name, instructions, model?, workspaceId?, idempotencyKey? })` | `POST /api/v1/agents` | Creates and deploys an agent → `Agent` |
+| `agents.list({ workspaceId?, limit?, cursor? })` | `GET /api/v1/agents` | One page `{ data, nextCursor }` (`limit` ≤ 50) |
+| `agents.get(agentId)` | `GET /api/v1/agents/{id}` | One `Agent` |
+| `agents.run(agentId, { message, timeoutMs?, idempotencyKey? })` | `POST /api/v1/agents/{id}/runs` | Sends a message and waits for the reply → `AgentRun` |
+| `agents.getRun(agentId, runId)` | `GET /api/v1/agents/{id}/runs/{runId}` | Reads a run without waiting |
+
+`agents.run` asks the server to wait for the reply (up to 55s). If the run is
+still going, it polls until the run finishes or `timeoutMs` (default 120000,
+counted from the call) passes, then throws a `MyBotBoxError` with code
+`TIMEOUT`. A run that ends `failed` is returned, not thrown: check `run.status`
+and `run.error`. Pass `idempotencyKey` to make a retried `create` or `run`
+return the original instead of a duplicate.
 
 ## API Reference
 
@@ -49,10 +91,11 @@ new MyBotBoxClient(config: MyBotBoxConfig)
 
 ##### executeWorkflow(workflowId, options?)
 
-Execute a workflow with optional input data.
+Queue a workflow run with optional input data. The input is sent as
+`{ input }`, which is where the server reads it.
 
 ```typescript
-const result = await client.executeWorkflow('workflow-id', {
+const { executionId } = await client.executeWorkflow('workflow-id', {
   input: { message: 'Hello, world!' },
   timeout: 30000 // 30 seconds
 });
@@ -65,7 +108,18 @@ const result = await client.executeWorkflow('workflow-id', {
   - `input` (any): Input data to pass to the workflow. File objects are automatically converted to base64.
   - `timeout` (number): Timeout in milliseconds (default: 30000)
 
-**Returns:** `Promise<WorkflowExecutionResult>`
+**Returns:** `Promise<QueuedExecutionResult>`: `{ success, executionId, status: 'queued' }`
+
+##### getRunStatus(workflowId, runId)
+
+Read one run's current state: `{ runId, status, output, error, triggerType, startedAt, finishedAt }`.
+`status` is one of `pending`, `running`, `paused`, `completed`, `failed`, `cancelled`.
+
+##### waitForRun(workflowId, runId, { timeoutMs? })
+
+Poll a run (backoff 500ms → 2s) until it is `completed`, `failed` or
+`cancelled`, and return it. Throws a `MyBotBoxError` with code `TIMEOUT` after
+`timeoutMs` (default 120000).
 
 ##### getWorkflowStatus(workflowId)
 
@@ -102,6 +156,9 @@ if (isReady) {
 ##### executeWorkflowSync(workflowId, options?)
 
 Execute a workflow and poll for completion (useful for long-running workflows).
+
+> Today this resolves with the queued result like `executeWorkflow`. To get the
+> output, call `waitForRun(workflowId, executionId)`.
 
 ```typescript
 const result = await client.executeWorkflowSync('workflow-id', {

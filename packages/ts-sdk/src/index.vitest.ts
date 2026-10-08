@@ -101,19 +101,17 @@ describe('MyBotBoxClient', () => {
   })
 
   describe('executeWorkflow - async execution', () => {
-    it('should return AsyncExecutionResult when async is true', async () => {
+    it('returns the queued response (executionId) when async is true', async () => {
       const fetch = await import('node-fetch')
+      // The real execute route answers 200 { success, executionId, status: 'queued', taskName }.
       const mockResponse = {
         ok: true,
-        status: 202,
+        status: 200,
         json: vi.fn().mockResolvedValue({
           success: true,
-          taskId: 'task-123',
+          executionId: 'exec_123',
           status: 'queued',
-          createdAt: '2024-01-01T00:00:00Z',
-          links: {
-            status: '/api/jobs/task-123',
-          },
+          taskName: 'projects/p/locations/l/queues/q/tasks/t',
         }),
         headers: {
           get: vi.fn().mockReturnValue(null),
@@ -126,10 +124,9 @@ describe('MyBotBoxClient', () => {
         async: true,
       })
 
-      expect(result).toHaveProperty('taskId', 'task-123')
-      expect(result).toHaveProperty('status', 'queued')
-      expect(result).toHaveProperty('links')
-      expect((result as any).links.status).toBe('/api/jobs/task-123')
+      expect(result.executionId).toBe('exec_123')
+      expect(result.status).toBe('queued')
+      expect(result.success).toBe(true)
 
       // Verify headers were set correctly
       const calls = vi.mocked(fetch.default).mock.calls
@@ -501,7 +498,10 @@ describe('MyBotBoxClient', () => {
       const calls = vi.mocked(fetch.default).mock.calls
       const requestBody = JSON.parse(calls[0][1]?.body as string)
 
-      expect(requestBody).toHaveProperty('message', 'test')
+      // The server reads the workflow input from body.input (execute route's
+      // zod schema) — input spread at the root is silently dropped.
+      expect(requestBody.input).toEqual({ message: 'test' })
+      expect(requestBody).not.toHaveProperty('message')
       expect(requestBody).toHaveProperty('stream', true)
       expect(requestBody).toHaveProperty('selectedOutputs')
       expect(requestBody.selectedOutputs).toEqual(['agent1.content', 'agent2.content'])

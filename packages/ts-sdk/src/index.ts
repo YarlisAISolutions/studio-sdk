@@ -9,6 +9,33 @@ export {
 } from './device-auth.js'
 
 import fetch from 'node-fetch'
+import { AgentsNamespace, type RawRequestOptions } from './agents.js'
+import {
+  AuthExpiredError,
+  httpError,
+  isAuthExpired,
+  MyBotBoxError,
+  parseErrorBody,
+} from './errors.js'
+import {
+  type Clock,
+  isTerminalRunStatus,
+  pollUntilTerminal,
+  type RunStatus,
+  systemClock,
+} from './runs.js'
+
+export {
+  type Agent,
+  type AgentList,
+  type AgentRun,
+  AgentsNamespace,
+  type CreateAgentInput,
+  type ListAgentsOptions,
+  type RunAgentOptions,
+} from './agents.js'
+export { isTerminalRunStatus, type RunStatus, TERMINAL_RUN_STATUSES } from './runs.js'
+export { AuthExpiredError, isAuthExpired, MyBotBoxError }
 
 export interface MyBotBoxConfig {
   /**
@@ -21,6 +48,39 @@ export interface MyBotBoxConfig {
   baseUrl?: string
 }
 
+/**
+ * What `POST /api/workflows/{id}/execute` returns: the run is queued and runs
+ * in the background. Follow it with {@link MyBotBoxClient.getRunStatus} or
+ * {@link MyBotBoxClient.waitForRun}.
+ */
+export interface QueuedExecutionResult {
+  success: boolean
+  /** The run id — pass it to `getRunStatus` / `waitForRun`. */
+  executionId: string
+  status: 'queued'
+  taskName?: string
+}
+
+/** A workflow run, as `GET /api/workflows/{id}/runs/{runId}/status` returns it. */
+export interface WorkflowRun {
+  runId: string
+  status: RunStatus
+  output: unknown
+  error: string | null
+  triggerType: string | null
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+export interface WaitForRunOptions {
+  /** Give up after this long and throw a `TIMEOUT` error. Default 120000. */
+  timeoutMs?: number
+}
+
+/**
+ * Result shape of {@link MyBotBoxClient.executeWorkflowSync}. The execute
+ * endpoint itself never returns this — it queues (see {@link QueuedExecutionResult}).
+ */
 export interface WorkflowExecutionResult {
   success: boolean
   output?: any
@@ -43,13 +103,20 @@ export interface WorkflowStatus {
 }
 
 export interface ExecutionOptions {
+  /** The workflow's input, sent as `{ input }`. File objects become base64. */
   input?: any
+  /** Request timeout in ms (for `executeWorkflowSync`, the wait for the run). */
   timeout?: number
   stream?: boolean
   selectedOutputs?: string[]
+  /** Sends `X-Execution-Mode: async`. Every execute is queued today, so it has no effect. */
   async?: boolean
 }
 
+/**
+ * @deprecated The server never returned this shape (`taskId`/`links`); execute
+ * returns {@link QueuedExecutionResult}. Kept so existing imports compile.
+ */
 export interface AsyncExecutionResult {
   success: boolean
   taskId: string
@@ -185,40 +252,6 @@ export interface UpdateWorkspaceInput {
   [key: string]: unknown
 }
 
-export class MyBotBoxError extends Error {
-  public code?: string
-  public status?: number
-
-  constructor(message: string, code?: string, status?: number) {
-    super(message)
-    this.name = 'MyBotBoxError'
-    this.code = code
-    this.status = status
-  }
-}
-
-/**
- * Thrown when the token is missing/expired/invalid (HTTP 401). Re-authenticate
- * with {@link MyBotBoxClient.login} (or set a fresh `MYBOTBOX_TOKEN`).
- */
-export class AuthExpiredError extends MyBotBoxError {
-  constructor(message = 'Your credentials have expired. Run device login to re-authenticate.') {
-    super(message, 'AUTH_EXPIRED', 401)
-    this.name = 'AuthExpiredError'
-  }
-}
-
-/** True when an error is an expired/invalid-credentials (401) error. */
-export function isAuthExpired(error: unknown): error is MyBotBoxError {
-  return error instanceof MyBotBoxError && error.status === 401
-}
-
-/** Build the right error for an HTTP status (401 → AuthExpiredError). */
-function httpError(status: number, message: string, code?: string): MyBotBoxError {
-  if (status === 401) return new AuthExpiredError(message)
-  return new MyBotBoxError(message, code, status)
-}
-
 /**
  * Remove trailing slashes from a URL
  * Uses string operations instead of regex to prevent ReDoS attacks
@@ -237,6 +270,15 @@ export class MyBotBoxClient {
   private apiKey: string
   private baseUrl: string
   private rateLimitInfo: RateLimitInfo | null = null
+
+  /** @internal Time source for the run waiters; tests swap it for a fake clock. */
+  _clock: Clock = systemClock
+
+  /** Create, list, get and run AI agents (`/api/v1/agents`). */
+  readonly agents: AgentsNamespace = new AgentsNamespace(
+    (method, path, options) => this.requestRaw(method, path, options),
+    () => this._clock
+  )
 
   constructor(config: MyBotBoxConfig = {}) {
     // Explicit key wins; otherwise auto-load MYBOTBOX_TOKEN (isomorphic). A
@@ -272,10 +314,6 @@ export class MyBotBoxClient {
     return new MyBotBoxClient({ apiKey: token, baseUrl: resolveHost(options.host) })
   }
 
-  /**
-   * Execute a workflow with optional input data
-   * If async is true, returns immediately with a task ID
-   */
   /**
    * Convert File objects in input to API format (base64)
    * Recursively processes nested objects and arrays
@@ -326,10 +364,15 @@ export class MyBotBoxClient {
     return value
   }
 
+  /**
+   * Queue a workflow run. Resolves as soon as the run is queued with its
+   * `executionId`; use {@link waitForRun} for the result, or
+   * {@link executeWorkflowSync} to do both.
+   */
   async executeWorkflow(
     workflowId: string,
     options: ExecutionOptions = {}
-  ): Promise<WorkflowExecutionResult | AsyncExecutionResult> {
+  ): Promise<QueuedExecutionResult> {
     const url = `${this.baseUrl}/api/workflows/${workflowId}/execute`
     const { input, timeout = 30000, stream, selectedOutputs, async } = options
 
@@ -348,11 +391,12 @@ export class MyBotBoxClient {
         headers['X-Execution-Mode'] = 'async'
       }
 
-      // Build JSON body - spread input at root level, then add API control parameters
-      let jsonBody: any = input !== undefined ? { ...input } : {}
-
-      // Convert any File objects in the input to base64 format
-      jsonBody = await this.convertFilesToBase64(jsonBody)
+      // The server reads the workflow input from `body.input`; API control
+      // parameters ride at the root. File objects are converted to base64.
+      const jsonBody: any = {}
+      if (input !== undefined) {
+        jsonBody.input = await this.convertFilesToBase64(input)
+      }
 
       if (stream !== undefined) {
         jsonBody.stream = stream
@@ -383,16 +427,13 @@ export class MyBotBoxClient {
       }
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as unknown as any
-        throw new MyBotBoxError(
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`,
-          errorData.code,
-          response.status
-        )
+        const errorData = await response.json().catch(() => ({}))
+        const { message, code } = parseErrorBody(errorData, response.status, response.statusText)
+        throw httpError(response.status, message, code)
       }
 
       const result = await response.json()
-      return result as WorkflowExecutionResult | AsyncExecutionResult
+      return result as QueuedExecutionResult
     } catch (error: any) {
       if (error instanceof MyBotBoxError) {
         throw error
@@ -438,6 +479,43 @@ export class MyBotBoxClient {
 
       throw new MyBotBoxError(error?.message || 'Failed to get workflow status', 'STATUS_ERROR')
     }
+  }
+
+  /**
+   * Read the current state of one workflow run (`executionId` from
+   * {@link executeWorkflow}). Only the run's owner can read it.
+   */
+  async getRunStatus(workflowId: string, runId: string): Promise<WorkflowRun> {
+    const res = await this.requestRaw<WorkflowRun>(
+      'GET',
+      `/api/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/status`
+    )
+    return res.body
+  }
+
+  /**
+   * Poll a run until it is `completed`, `failed` or `cancelled` (backoff
+   * 500ms → 2s). Returns the terminal run — a failed run is returned, not
+   * thrown. Throws a `MyBotBoxError` with code `TIMEOUT` once `timeoutMs`
+   * (default 120000) passes.
+   */
+  async waitForRun(
+    workflowId: string,
+    runId: string,
+    options: WaitForRunOptions = {}
+  ): Promise<WorkflowRun> {
+    const timeoutMs = options.timeoutMs ?? 120_000
+    const clock = this._clock
+    const deadline = clock.now() + timeoutMs
+    const first = await this.getRunStatus(workflowId, runId)
+    if (isTerminalRunStatus(first.status)) return first
+    const done = await pollUntilTerminal(
+      () => this.getRunStatus(workflowId, runId),
+      deadline,
+      clock
+    )
+    if (done) return done
+    throw new MyBotBoxError(`Run ${runId} did not finish within ${timeoutMs}ms`, 'TIMEOUT')
   }
 
   /**
@@ -522,7 +600,7 @@ export class MyBotBoxClient {
     workflowId: string,
     options: ExecutionOptions = {},
     retryOptions: RetryOptions = {}
-  ): Promise<WorkflowExecutionResult | AsyncExecutionResult> {
+  ): Promise<QueuedExecutionResult> {
     const {
       maxRetries = 3,
       initialDelay = 1000,
@@ -642,7 +720,22 @@ export class MyBotBoxClient {
     path: string,
     body?: unknown
   ): Promise<T> {
-    const headers: Record<string, string> = { 'X-API-Key': this.apiKey }
+    const res = await this.requestRaw<T>(method, path, { body })
+    return res.body
+  }
+
+  /**
+   * @internal Like `apiRequest`, but also returns the HTTP status (so callers
+   * can tell 200 from 202) and accepts extra headers (e.g. `Idempotency-Key`).
+   * Non-2xx responses throw a {@link MyBotBoxError}.
+   */
+  async requestRaw<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+    path: string,
+    options: RawRequestOptions = {}
+  ): Promise<{ status: number; body: T }> {
+    const { body, headers: extraHeaders } = options
+    const headers: Record<string, string> = { ...extraHeaders, 'X-API-Key': this.apiKey }
     if (body !== undefined) headers['Content-Type'] = 'application/json'
 
     try {
@@ -654,16 +747,13 @@ export class MyBotBoxClient {
       this.updateRateLimitInfo(response)
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as any
-        throw httpError(
-          response.status,
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`,
-          errorData.code
-        )
+        const errorData = await response.json().catch(() => ({}))
+        const { message, code } = parseErrorBody(errorData, response.status, response.statusText)
+        throw httpError(response.status, message, code)
       }
       // DELETE may return an empty body.
       const text = await response.text()
-      return (text ? JSON.parse(text) : {}) as T
+      return { status: response.status, body: (text ? JSON.parse(text) : {}) as T }
     } catch (error: any) {
       if (error instanceof MyBotBoxError) throw error
       throw new MyBotBoxError(
