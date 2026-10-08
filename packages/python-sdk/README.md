@@ -527,7 +527,7 @@ isort ystudio/
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - requests >= 2.25.0
 
 ## License

@@ -477,7 +477,7 @@ bun run dev
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - TypeScript 5.0+ (for TypeScript projects)
 
 ## License
