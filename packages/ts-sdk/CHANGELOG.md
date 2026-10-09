@@ -1,5 +1,17 @@
 # @yarlisai/studio-sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- [#3291](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3291) [`ca6990a`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/ca6990ac8c9b4f3d002cad560bd101a89cd53ad3) Thanks [@siri1410](https://github.com/siri1410)! - Add the `client.agents` namespace (`create`, `list`, `get`, `run`, `getRun`) over the public `/api/v1/agents` API. `agents.run` asks the server to wait for the reply and, on a 202, polls the run until it finishes or `timeoutMs` (default 120000) passes, then throws a `MyBotBoxError` with code `TIMEOUT`. `create` and `run` send an `Idempotency-Key` header when you pass `idempotencyKey`.
+
+  Add `getRunStatus(workflowId, runId)` and `waitForRun(workflowId, runId, { timeoutMs })` (backoff 500ms → 2s) for workflow runs.
+
+  Fix `executeWorkflow`: it now sends the input as `{ input }`, where the server reads it. Before, the input was spread at the body root and dropped, so every SDK (and `mybotbox workflow run -i`) execution ran with no input. `executeWorkflow` and `executeWithRetry` are now typed as the real queued response `QueuedExecutionResult` (`{ success, executionId, status: 'queued' }`); `AsyncExecutionResult` stays exported but is deprecated. Error bodies in the HTTP-port envelope now surface `details.code` as `error.code`.
+
+- [#3295](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3295) [`b1d1a2b`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/b1d1a2b7a80936af580dce98c611a12371416370) Thanks [@siri1410](https://github.com/siri1410)! - Require Node.js 20 or later (`engines.node` was `>=16`). Node 16 and 18 are end-of-life and no longer receive security fixes.
+
 ## 0.5.4
 
 ### Patch Changes
