@@ -1,0 +1,71 @@
+# Copy this file into your repo as `.github/workflows/security.yml`.
+# It is the ONE caller a consuming repo needs — it invokes the whole suite.
+#
+# Pin the suite to a bastion commit SHA (never @main) and let Dependabot's
+# github-actions ecosystem bump it (see examples/dependabot.yml). The pin covers
+# the umbrella only: its child workflows resolve at bastion@main by design.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  # REPLACE THIS CRON WITH YOUR REPO'S OWN SLOT. If every consumer keeps the
+  # example value, all of them queue on the shared runners at the same minute
+  # (27 repos did, p90 wait 80-130 min). Monday is fixed; the minute and hour
+  # come from the repo name (lowercase, no owner):
+  #   h      = first 8 hex chars of sha256(repo name), read as an integer
+  #   minute = h mod 60, hour = 3 + (h mod 4)  -> "<minute> <hour> * * 1" UTC
+  # Use the GitHub repo name, not the local folder name, which can differ
+  # (macOS: use `shasum -a 256` for `sha256sum`):
+  #   r=$(gh repo view --json name -q .name); h=$((16#$(printf %s "$r" | sha256sum | cut -c1-8)))
+  #   echo "$((h % 60)) $((3 + h % 4)) * * 1"
+  # Because 60 is a multiple of 4, the hour follows from the minute, so there
+  # are 60 possible slots between 03:00 and 06:59. Two repos can land on the
+  # same slot; a few sharing one is fine.
+  schedule:
+    - cron: 41 6 * * 1 # placeholder: replace with your slot (see above)
+  workflow_dispatch:
+
+# A newer push to the same PR cancels the older scan; main and scheduled runs
+# always finish.
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Top-level least-privilege default; the suite job below widens only what the
+# nested workflows actually request.
+permissions:
+  contents: read
+
+jobs:
+  security:
+    # This job's permissions are the UNION the nested workflows need. A called
+    # workflow can only DOWNGRADE these, never add to them — so they must be
+    # granted here or the nested jobs error at runtime:
+    #   security-events: write  -> OSV reusable job declaration
+    #   pull-requests:   write  -> AI review PR comments
+    #   id-token:        write  -> OpenSSF Scorecard
+    #   actions:         read   -> OSV reusable
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      id-token: write
+      actions: read
+    uses: YarlisAISolutions/bastion/.github/workflows/security-suite.yml@f99222d27487e2da44235bf2aab5ef268f17de90 # v0.5.0
+    with:
+      # Uncomment and set to your pushed image to enable the Trivy image scan;
+      # unset, only the filesystem is scanned. PRs can't pull from the registry,
+      # so image scans belong in the build that pushes the image.
+      # image-ref: gcr.io/ystudio-core/app:${{ github.sha }}
+      # Needs a CLAUDE_API_KEY repo secret; leave false until one exists.
+      run-ai-review: false
+      semgrep-config: auto
+      # Advisory for the first ~2 weeks: triage or waive the findings
+      # (policies/exceptions.yaml), then flip to true and make the checks required.
+      enforce: false
+    # With run-ai-review: true, pass ONLY the secret the suite needs (least
+    # privilege, never `inherit`):
+    # secrets:
+    #   CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
