@@ -98,12 +98,17 @@ async function saveToken(host: string, token: string, user?: HostEntry['user']):
 async function openBrowser(url: string): Promise<void> {
   try {
     const { spawn } = await import('node:child_process')
-    const cmd =
-      process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
-    const child = spawn(cmd, [url], {
+    // Never through a shell: `start` is a cmd.exe builtin, and a shell would parse
+    // `&` and `|` in the URL as commands. rundll32 opens it as a single argument.
+    const [cmd, args]: [string, string[]] =
+      process.platform === 'darwin'
+        ? ['open', [url]]
+        : process.platform === 'win32'
+          ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
+          : ['xdg-open', [url]]
+    const child = spawn(cmd, args, {
       stdio: 'ignore',
       detached: true,
-      shell: process.platform === 'win32',
     })
     child.on('error', () => {})
     child.unref()
