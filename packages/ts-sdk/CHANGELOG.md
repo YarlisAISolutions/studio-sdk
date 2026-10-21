@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- [#3522](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3522) [`e1da401`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/e1da401da3606eee72b1d26c8854a95c0c874e27) Thanks [@siri1410](https://github.com/siri1410)! - Open the device-login URL on Windows with `rundll32 url.dll,FileProtocolHandler` instead of `start` through a shell, so `&` or `|` in the URL can never run as a command. macOS and Linux are unchanged.
+
 ## 0.6.0
 
 ### Minor Changes
