@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.6.2
+
+### Patch Changes
+
+- [#3602](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3602) [`7a2e382`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/7a2e382b7db257c7e4321e197d206c8931eb3cd0) Thanks [@siri1410](https://github.com/siri1410)! - Dependency refresh 2026-10: minor and patch updates of dependencies and devDependencies (0.x packages patch-only). No API changes.
+
 ## 0.6.1
 
 ### Patch Changes
