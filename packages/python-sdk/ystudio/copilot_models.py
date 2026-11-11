@@ -104,16 +104,6 @@ COPILOT_MODELS = [
         "label": "claude-sonnet-4-6",
         "icon": "brain",
         "provider": "anthropic",
-        "deprecated": {
-            "successor": "claude-sonnet-4-7",
-            "since": "2026-07-10"
-        }
-    },
-    {
-        "value": "claude-sonnet-4-7",
-        "label": "claude-sonnet-4-7",
-        "icon": "brain",
-        "provider": "anthropic",
         "capabilities": [
             "vision",
             "code",
@@ -121,18 +111,18 @@ COPILOT_MODELS = [
         ]
     },
     {
-        "value": "claude-opus-4-8",
-        "label": "claude-opus-4-8",
-        "icon": "brainCircuit",
+        "value": "claude-sonnet-4-7",
+        "label": "claude-sonnet-4-7",
+        "icon": "brain",
         "provider": "anthropic",
         "deprecated": {
-            "successor": "claude-opus-4-9",
-            "since": "2026-07-10"
+            "successor": "claude-sonnet-4-6",
+            "since": "2026-08-01"
         }
     },
     {
-        "value": "claude-opus-4-9",
-        "label": "claude-opus-4-9",
+        "value": "claude-opus-4-8",
+        "label": "claude-opus-4-8",
         "icon": "brainCircuit",
         "provider": "anthropic",
         "capabilities": [
@@ -141,6 +131,56 @@ COPILOT_MODELS = [
             "reasoning",
             "research"
         ]
+    },
+    {
+        "value": "claude-opus-4-9",
+        "label": "claude-opus-4-9",
+        "icon": "brainCircuit",
+        "provider": "anthropic",
+        "deprecated": {
+            "successor": "claude-opus-4-8",
+            "since": "2026-08-01"
+        }
+    },
+    {
+        "value": "claude-haiku-5-5",
+        "label": "claude-haiku-5-5",
+        "icon": "zap",
+        "provider": "anthropic",
+        "deprecated": {
+            "successor": "gpt-5-mini",
+            "since": "2026-10-26"
+        }
+    },
+    {
+        "value": "claude-sonnet-5-5",
+        "label": "claude-sonnet-5-5",
+        "icon": "brain",
+        "provider": "anthropic",
+        "deprecated": {
+            "successor": "claude-sonnet-4-6",
+            "since": "2026-10-26"
+        }
+    },
+    {
+        "value": "claude-opus-5-5",
+        "label": "claude-opus-5-5",
+        "icon": "brainCircuit",
+        "provider": "anthropic",
+        "deprecated": {
+            "successor": "claude-opus-4-8",
+            "since": "2026-10-26"
+        }
+    },
+    {
+        "value": "claude-fable-5-1",
+        "label": "claude-fable-5-1",
+        "icon": "brainCircuit",
+        "provider": "anthropic",
+        "deprecated": {
+            "successor": "claude-opus-4-8",
+            "since": "2026-10-26"
+        }
     },
     {
         "value": "gemini-3.1-flash-lite",
