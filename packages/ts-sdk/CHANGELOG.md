@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.6.3
+
+### Patch Changes
+
+- [#3711](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3711) [`79e32f5`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/79e32f59cb391e8a605dc726a4979624dc689055) Thanks [@siri1410](https://github.com/siri1410)! - Regenerate the vendored Copilot model lineup from `@yarlisai/ai` so it carries the Claude 5 family entries and the current deprecation markers.
+
 ## 0.6.2
 
 ### Patch Changes
