@@ -4,7 +4,7 @@ Tests for the MyBotBox Python SDK
 
 import pytest
 from unittest.mock import Mock, patch
-from ystudio import (
+from mybotbox import (
     MyBotBoxClient,
     MyBotBoxError,
     QueuedExecutionResult,
@@ -48,7 +48,7 @@ def test_set_base_url_strips_trailing_slash():
     assert client.base_url == "https://test.mybotbox.com"
 
 
-@patch('ystudio.requests.Session.get')
+@patch('mybotbox.requests.Session.get')
 def test_validate_workflow_returns_false_on_error(mock_get):
     """Test that validate_workflow returns False when request fails."""
     mock_get.side_effect = MyBotBoxError("Network error")
@@ -94,7 +94,7 @@ def test_workflow_status():
     assert status.needs_redeployment is False
 
 
-@patch('ystudio.requests.Session.close')
+@patch('mybotbox.requests.Session.close')
 def test_context_manager(mock_close):
     """Test MyBotBoxClient as context manager."""
     with MyBotBoxClient(api_key="test-api-key") as client:
@@ -104,7 +104,7 @@ def test_context_manager(mock_close):
 
 
 # Tests for async execution
-@patch('ystudio.requests.Session.post')
+@patch('mybotbox.requests.Session.post')
 def test_async_execution_returns_queued_result(mock_post):
     """The real execute route answers 200 {success, executionId, status: 'queued'}."""
     mock_response = Mock()
@@ -136,7 +136,7 @@ def test_async_execution_returns_queued_result(mock_post):
     assert call_args[1]["headers"]["X-Execution-Mode"] == "async"
 
 
-@patch('ystudio.requests.Session.post')
+@patch('mybotbox.requests.Session.post')
 def test_sync_execution_returns_result(mock_post):
     """Test sync execution returns WorkflowExecutionResult."""
     mock_response = Mock()
@@ -162,7 +162,7 @@ def test_sync_execution_returns_result(mock_post):
     assert not hasattr(result, 'task_id')
 
 
-@patch('ystudio.requests.Session.post')
+@patch('mybotbox.requests.Session.post')
 def test_async_header_not_set_when_false(mock_post):
     """Test X-Execution-Mode header is not set when async_execution is None."""
     mock_response = Mock()
@@ -180,7 +180,7 @@ def test_async_header_not_set_when_false(mock_post):
 
 
 # Tests for job status
-@patch('ystudio.requests.Session.get')
+@patch('mybotbox.requests.Session.get')
 def test_get_job_status_success(mock_get):
     """Test getting job status."""
     mock_response = Mock()
@@ -212,7 +212,7 @@ def test_get_job_status_success(mock_get):
     mock_get.assert_called_once_with("https://test.mybotbox.com/api/workflows/task-123/status")
 
 
-@patch('ystudio.requests.Session.get')
+@patch('mybotbox.requests.Session.get')
 def test_get_job_status_not_found(mock_get):
     """Test job not found error."""
     mock_response = Mock()
@@ -234,8 +234,8 @@ def test_get_job_status_not_found(mock_get):
 
 
 # Tests for retry with rate limiting
-@patch('ystudio.requests.Session.post')
-@patch('ystudio.time.sleep')
+@patch('mybotbox.requests.Session.post')
+@patch('mybotbox.time.sleep')
 def test_execute_with_retry_success_first_attempt(mock_sleep, mock_post):
     """Test retry succeeds on first attempt."""
     mock_response = Mock()
@@ -256,8 +256,8 @@ def test_execute_with_retry_success_first_attempt(mock_sleep, mock_post):
     assert mock_sleep.call_count == 0
 
 
-@patch('ystudio.requests.Session.post')
-@patch('ystudio.time.sleep')
+@patch('mybotbox.requests.Session.post')
+@patch('mybotbox.time.sleep')
 def test_execute_with_retry_retries_on_rate_limit(mock_sleep, mock_post):
     """Test retry retries on rate limit error."""
     rate_limit_response = Mock()
@@ -299,8 +299,8 @@ def test_execute_with_retry_retries_on_rate_limit(mock_sleep, mock_post):
     assert mock_sleep.call_count == 1
 
 
-@patch('ystudio.requests.Session.post')
-@patch('ystudio.time.sleep')
+@patch('mybotbox.requests.Session.post')
+@patch('mybotbox.time.sleep')
 def test_execute_with_retry_max_retries_exceeded(mock_sleep, mock_post):
     """Test retry throws after max retries."""
     mock_response = Mock()
@@ -327,7 +327,7 @@ def test_execute_with_retry_max_retries_exceeded(mock_sleep, mock_post):
     assert mock_post.call_count == 3  # Initial + 2 retries
 
 
-@patch('ystudio.requests.Session.post')
+@patch('mybotbox.requests.Session.post')
 def test_execute_with_retry_no_retry_on_other_errors(mock_post):
     """Test retry does not retry on non-rate-limit errors."""
     mock_response = Mock()
@@ -358,7 +358,7 @@ def test_get_rate_limit_info_returns_none_initially():
     assert info is None
 
 
-@patch('ystudio.requests.Session.post')
+@patch('mybotbox.requests.Session.post')
 def test_get_rate_limit_info_after_api_call(mock_post):
     """Test rate limit info is populated after API call."""
     mock_response = Mock()
@@ -383,7 +383,7 @@ def test_get_rate_limit_info_after_api_call(mock_post):
 
 
 # Tests for usage limits
-@patch('ystudio.requests.Session.get')
+@patch('mybotbox.requests.Session.get')
 def test_get_usage_limits_success(mock_get):
     """Test getting usage limits."""
     mock_response = Mock()
@@ -425,7 +425,7 @@ def test_get_usage_limits_success(mock_get):
     mock_get.assert_called_once_with("https://test.mybotbox.com/api/users/me/usage-limits")
 
 
-@patch('ystudio.requests.Session.get')
+@patch('mybotbox.requests.Session.get')
 def test_get_usage_limits_unauthorized(mock_get):
     """Test usage limits with invalid API key."""
     mock_response = Mock()
@@ -447,7 +447,7 @@ def test_get_usage_limits_unauthorized(mock_get):
 
 
 # Tests for streaming with selectedOutputs
-@patch('ystudio.requests.Session.post')
+@patch('mybotbox.requests.Session.post')
 def test_execute_workflow_with_stream_and_selected_outputs(mock_post):
     """Test execution with stream and selectedOutputs parameters."""
     mock_response = Mock()
@@ -558,11 +558,11 @@ def test_management_error_maps_to_mybotbox_error():
 
 
 # --- Agents + run status ------------------------------------------------------
-# Time comes from a fake clock: ystudio._sleep advances ystudio._now, so polling
+# Time comes from a fake clock: mybotbox._sleep advances mybotbox._now, so polling
 # and deadlines run instantly and deterministically.
 
-import ystudio as _ystudio
-from ystudio import AuthExpiredError, Agent, AgentRun, WorkflowRun
+import mybotbox as _sdk
+from mybotbox import AuthExpiredError, Agent, AgentRun, WorkflowRun
 
 
 @pytest.fixture
@@ -573,8 +573,8 @@ def fake_clock(monkeypatch):
         state["sleeps"].append(round(seconds, 6))
         state["t"] += seconds
 
-    monkeypatch.setattr(_ystudio, "_now", lambda: state["t"])
-    monkeypatch.setattr(_ystudio, "_sleep", _sleep)
+    monkeypatch.setattr(_sdk, "_now", lambda: state["t"])
+    monkeypatch.setattr(_sdk, "_sleep", _sleep)
     return state
 
 
@@ -602,7 +602,7 @@ DONE = {"runId": "run-1", "status": "completed", "reply": "PONG", "output": {"re
 
 def test_client_exposes_agents_namespace():
     client = MyBotBoxClient(api_key="k", base_url="https://h")
-    assert isinstance(client.agents, _ystudio.Agents)
+    assert isinstance(client.agents, _sdk.Agents)
 
 
 def test_agents_create_posts_body_with_key_and_idempotency_header():

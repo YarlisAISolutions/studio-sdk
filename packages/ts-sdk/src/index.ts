@@ -858,9 +858,13 @@ export class MyBotBoxClient {
 // Export types and classes with new branding
 export default MyBotBoxClient
 
-// Compatibility aliases
+// Compatibility aliases. They are the SAME objects as the new names, so
+// `instanceof` and `catch` keep working; editors strike the YStudio ones through.
+/** @deprecated Use `MyBotBoxClient`. `YStudioClient` will be removed in the next major. */
 export const YStudioClient = MyBotBoxClient
+/** @deprecated Use `MyBotBoxError`. `YStudioError` will be removed in the next major. */
 export const YStudioError = MyBotBoxError
+/** @deprecated Use `MyBotBoxConfig`. `YStudioConfig` will be removed in the next major. */
 export type YStudioConfig = MyBotBoxConfig
 export const YarlisClient = MyBotBoxClient
 export const YarlisError = MyBotBoxError

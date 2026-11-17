@@ -8,6 +8,8 @@ The official Python SDK for [MyBotBox](https://mybotbox.com), allowing you to ex
 pip install yarlis-studio-sdk
 ```
 
+The import name is `mybotbox`. The old `ystudio` import still works as a deprecated alias: it re-exports `mybotbox` (the same objects) and raises a `DeprecationWarning` on import, as do the old `YStudioClient` and `YStudioError` names. Switch to `from mybotbox import MyBotBoxClient, MyBotBoxError`; the alias goes in the next major release.
+
 ## Quick Start
 
 ```python
@@ -513,16 +515,16 @@ Run code quality checks:
 
 ```bash
 # Code formatting
-black ystudio/
+black mybotbox/
 
 # Linting
-flake8 ystudio/ --max-line-length=100
+flake8 mybotbox/ --max-line-length=100
 
 # Type checking
-mypy ystudio/
+mypy mybotbox/
 
 # Import sorting
-isort ystudio/
+isort mybotbox/
 ```
 
 ## Requirements

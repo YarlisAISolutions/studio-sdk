@@ -13,7 +13,7 @@ import { ACTIVE_COPILOT_MODELS, COPILOT_MODELS, DEFAULT_COPILOT_MODEL } from './
 
 const repoRoot = join(__dirname, '..', '..', '..')
 const sourcePath = join(repoRoot, 'packages/ai/src/copilot/models.ts')
-const pyPath = join(repoRoot, 'packages/python-sdk/ystudio/copilot_models.py')
+const pyPath = join(repoRoot, 'packages/python-sdk/mybotbox/copilot_models.py')
 
 /** Model ids declared in the source-of-truth file, in declaration order. */
 function sourceModelIds(): string[] {
