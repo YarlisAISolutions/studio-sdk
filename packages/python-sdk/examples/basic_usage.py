@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Basic usage examples for the YStudio Python SDK
+Basic usage examples for the MyBotBox Python SDK
 """
 
 import os
