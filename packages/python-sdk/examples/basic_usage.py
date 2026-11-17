@@ -218,7 +218,7 @@ def error_handling_example():
 
 
 if __name__ == "__main__":
-    print("🚀 Running YStudio Python SDK Examples\n")
+    print("🚀 Running MyBotBox Python SDK Examples\n")
 
     # Check if API key is set
     if not os.getenv("MBB_API_KEY"):
