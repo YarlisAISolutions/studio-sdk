@@ -1,5 +1,11 @@
 # @yarlisai/studio-sdk
 
+## 0.6.4
+
+### Patch Changes
+
+- [#3804](https://github.com/YarlisAISolutions/mybotbox-platform/pull/3804) [`b278b79`](https://github.com/YarlisAISolutions/mybotbox-platform/commit/b278b7952fc418a2521f0760a111626485657a2c) Thanks [@siri1410](https://github.com/siri1410)! - Mark the `YStudioClient`, `YStudioError` and `YStudioConfig` exports `@deprecated` in favour of `MyBotBoxClient`, `MyBotBoxError` and `MyBotBoxConfig`. They stay exported and are the same objects as the new names, so existing code keeps working; editors now strike them through. They go in the next major (MBB-682).
+
 ## 0.6.3
 
 ### Patch Changes
